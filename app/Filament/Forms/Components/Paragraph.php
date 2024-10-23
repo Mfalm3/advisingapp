@@ -1,4 +1,6 @@
-{{--
+<?php
+
+/*
 <COPYRIGHT>
 
     Copyright © 2016-2024, Canyon GBS LLC. All rights reserved.
@@ -30,20 +32,50 @@
     https://www.canyongbs.com or contact us via email at legal@canyongbs.com.
 
 </COPYRIGHT>
---}}
-<x-filament-panels::layout.base :livewire="$livewire">
-    <div class="fi-layout flex h-screen w-full flex-col lg:flex-row-reverse">
-        <div class="fi-main-ctn w-full flex flex-col h-full">
-            <div class="flex justify-center items-center w-full border-b border-gray-200 mb-4 flex-shrink-0 p-4">
-                <x-filament-panels::logo />
-            </div>
-            
-            <main class="fi-main mx-auto flex-grow flex justify-center items-center w-full px-4 md:px-6 lg:px-8 max-w-screen-lg mb-4">
-                {{ $slot }}
-            </main>
-            <div class="mt-auto mb-4 lg:mb-4 inline-block w-full h-16">
-                <x-footer class="footer" />
-            </div>
-        </div>
-    </div>
-</x-filament-panels::layout.base>
+*/
+
+namespace App\Filament\Forms\Components;
+
+use Closure;
+use Filament\Forms\Components\Component;
+
+class Paragraph extends Component
+{
+    protected mixed $content = null;
+
+    protected string | Closure | null $defaultView = 'filament.forms.components.paragraph';
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->dehydrated(false);
+
+        $this->columnSpanFull();
+    }
+
+    public static function make(): static
+    {
+        $static = app(static::class);
+        $static->configure();
+
+        return $static;
+    }
+
+    public function content(mixed $content): static
+    {
+        $this->content = $content;
+
+        return $this;
+    }
+
+    public function getId(): string
+    {
+        return parent::getId() ?? $this->getStatePath();
+    }
+
+    public function getContent(): mixed
+    {
+        return $this->evaluate($this->content);
+    }
+}

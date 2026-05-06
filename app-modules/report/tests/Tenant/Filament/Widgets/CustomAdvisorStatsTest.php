@@ -109,7 +109,7 @@ it('returns correct total custom advisor stats within the given date range', fun
     ]);
 
     $widget = new CustomAdvisorStats();
-    $widget->cacheTag = 'report-custom-advisor';
+    $widget->cacheTag = 'report-employee-advisor';
     $widget->pageFilters = [
         'startDate' => $startDate->toDateString(),
         'endDate' => $endDate->toDateString(),
@@ -118,7 +118,7 @@ it('returns correct total custom advisor stats within the given date range', fun
     $stats = $widget->getStats();
 
     expect($stats)->toHaveCount(3)
-        ->and($stats[0]->getLabel())->toBe('Custom Advisors')
+        ->and($stats[0]->getLabel())->toBe('Employee Advisors')
         ->and($stats[0]->getValue())->toEqual($count * 2) // Only custom advisors within date range
         ->and($stats[1]->getLabel())->toBe('Exchanges')
         ->and($stats[1]->getValue())->toEqual(($count * 2) + 1) // Custom advisor uses within date range
@@ -160,13 +160,13 @@ it('returns correct total custom advisor stats without date filters', function (
     }
 
     $widget = new CustomAdvisorStats();
-    $widget->cacheTag = 'report-custom-advisor';
+    $widget->cacheTag = 'report-employee-advisor';
     $widget->pageFilters = [];
 
     $stats = $widget->getStats();
 
     expect($stats)->toHaveCount(3)
-        ->and($stats[0]->getLabel())->toBe('Custom Advisors')
+        ->and($stats[0]->getLabel())->toBe('Employee Advisors')
         ->and($stats[0]->getValue())->toEqual($count + 1) // All custom advisors
         ->and($stats[1]->getLabel())->toBe('Exchanges')
         ->and($stats[1]->getValue())->toEqual($count + 2) // All custom advisor uses
@@ -185,13 +185,13 @@ it('returns zero stats when no custom advisors exist', function () {
     ]);
 
     $widget = new CustomAdvisorStats();
-    $widget->cacheTag = 'report-custom-advisor';
+    $widget->cacheTag = 'report-employee-advisor';
     $widget->pageFilters = [];
 
     $stats = $widget->getStats();
 
     expect($stats)->toHaveCount(3)
-        ->and($stats[0]->getLabel())->toBe('Custom Advisors')
+        ->and($stats[0]->getLabel())->toBe('Employee Advisors')
         ->and($stats[0]->getValue())->toEqual('0')
         ->and($stats[1]->getLabel())->toBe('Exchanges')
         ->and($stats[1]->getValue())->toEqual('0')

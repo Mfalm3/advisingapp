@@ -38,6 +38,7 @@ namespace AdvisingApp\Workflow\Models;
 
 use AdvisingApp\Audit\Models\Concerns\Auditable as AuditableTrait;
 use AdvisingApp\Workflow\Database\Factories\WorkflowTriggerFactory;
+use AdvisingApp\Workflow\Enums\WorkflowTriggerEvent;
 use AdvisingApp\Workflow\Enums\WorkflowTriggerType;
 use App\Models\BaseModel;
 use Illuminate\Database\Eloquent\Concerns\HasVersion4Uuids as HasUuids;
@@ -66,10 +67,14 @@ class WorkflowTrigger extends BaseModel implements Auditable
         'related_id',
         'created_by_type',
         'created_by_id',
+        'sub_related_type',
+        'sub_related_id',
+        'event',
     ];
 
     protected $casts = [
         'type' => WorkflowTriggerType::class,
+        'event' => WorkflowTriggerEvent::class,
     ];
 
     /**
@@ -100,6 +105,14 @@ class WorkflowTrigger extends BaseModel implements Auditable
      * @return MorphTo<Model, $this>
      */
     public function related(): MorphTo
+    {
+        return $this->morphTo();
+    }
+
+    /**
+     * @return MorphTo<Model, $this>
+     */
+    public function subRelated(): MorphTo
     {
         return $this->morphTo();
     }

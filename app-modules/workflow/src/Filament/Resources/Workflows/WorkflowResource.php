@@ -36,6 +36,7 @@
 
 namespace AdvisingApp\Workflow\Filament\Resources\Workflows;
 
+use AdvisingApp\Workflow\Filament\Forms\WorkflowTypeFormRegistry;
 use AdvisingApp\Workflow\Filament\Resources\Workflows\Pages\EditWorkflow;
 use AdvisingApp\Workflow\Filament\Resources\Workflows\Pages\ListWorkflows;
 use AdvisingApp\Workflow\Filament\Resources\Workflows\RelationManagers\WorkflowStepsRelationManager;
@@ -53,15 +54,27 @@ class WorkflowResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema
-            ->components([
-                TextInput::make('name')
-                    ->required()
-                    ->maxLength(255),
-                Toggle::make('is_enabled')
-                    ->label('Enabled?')
-                    ->inline(false),
-            ]);
+        $schema = $schema->components([
+            TextInput::make('name')
+                ->required()
+                ->maxLength(255),
+            Toggle::make('is_enabled')
+                ->label('Enabled?')
+                ->inline(false),
+        ]);
+
+        $record = $schema->getRecord();
+
+        if ($record instanceof Workflow) {
+            $typeFormClass = app(WorkflowTypeFormRegistry::class)
+                ->for($record->workflowTrigger->related_type);
+
+            if ($typeFormClass !== null) {
+                $schema = $typeFormClass::configureForm($schema);
+            }
+        }
+
+        return $schema;
     }
 
     public static function getRelations(): array

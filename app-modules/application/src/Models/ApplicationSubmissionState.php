@@ -39,12 +39,14 @@ namespace AdvisingApp\Application\Models;
 use AdvisingApp\Application\Database\Factories\ApplicationSubmissionStateFactory;
 use AdvisingApp\Application\Enums\ApplicationSubmissionStateClassification;
 use AdvisingApp\Audit\Models\Concerns\Auditable as AuditableTrait;
+use AdvisingApp\Workflow\Models\WorkflowTrigger;
 use App\Models\BaseModel;
 use CanyonGBS\Common\Enums\Color;
 use CanyonGBS\Common\Models\Concerns\CanBeArchived;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use OwenIt\Auditing\Contracts\Auditable;
 
@@ -78,6 +80,14 @@ class ApplicationSubmissionState extends BaseModel implements Auditable
     public function submissions(): HasMany
     {
         return $this->hasMany(ApplicationSubmission::class, 'state_id');
+    }
+
+    /**
+     * @return MorphMany<WorkflowTrigger, $this>
+     */
+    public function workflowTriggers(): MorphMany
+    {
+        return $this->morphMany(WorkflowTrigger::class, 'sub_related');
     }
 
     /**

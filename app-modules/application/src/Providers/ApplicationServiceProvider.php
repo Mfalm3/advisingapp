@@ -38,8 +38,12 @@ namespace AdvisingApp\Application\Providers;
 
 use AdvisingApp\Application\ApplicationPlugin;
 use AdvisingApp\Application\Events\ApplicationSubmissionCreated;
+use AdvisingApp\Application\Events\ApplicationSubmissionStateEntered;
+use AdvisingApp\Application\Events\ApplicationSubmissionStateExited;
+use AdvisingApp\Application\Filament\Forms\ApplicationWorkflowForm;
 use AdvisingApp\Application\Listeners\ClearApplicationSubmissionCountCache;
 use AdvisingApp\Application\Listeners\NotifySubscribersOfApplicationSubmission;
+use AdvisingApp\Application\Listeners\TriggerApplicationSubmissionStageWorkflows;
 use AdvisingApp\Application\Listeners\TriggerApplicationSubmissionWorkflows;
 use AdvisingApp\Application\Models\Application;
 use AdvisingApp\Application\Models\ApplicationAuthentication;
@@ -48,6 +52,7 @@ use AdvisingApp\Application\Models\ApplicationFieldSubmission;
 use AdvisingApp\Application\Models\ApplicationStep;
 use AdvisingApp\Application\Models\ApplicationSubmission;
 use AdvisingApp\Application\Models\ApplicationSubmissionState;
+use AdvisingApp\Workflow\Filament\Forms\WorkflowTypeFormRegistry;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Event;
@@ -74,6 +79,9 @@ class ApplicationServiceProvider extends ServiceProvider
 
         $this->registerEvents();
 
+        $this->app->make(WorkflowTypeFormRegistry::class)
+            ->register(ApplicationWorkflowForm::class);
+
         $this->loadRoutesFrom(__DIR__ . '/../../routes/widgets.php');
     }
 
@@ -86,12 +94,26 @@ class ApplicationServiceProvider extends ServiceProvider
 
         Event::listen(
             events: ApplicationSubmissionCreated::class,
+            listener: ClearApplicationSubmissionCountCache::class
+        );
+
+        // TODO: Cleanup Task - Once AdmissionsStageWorkflowTriggersFeature is removed,
+        // delete this Event::listen() block. It wires up the old listener that only
+        // runs when the feature flag is OFF; once the flag is gone, the listener and
+        // this registration are both dead code.
+        Event::listen(
+            events: ApplicationSubmissionCreated::class,
             listener: TriggerApplicationSubmissionWorkflows::class
         );
 
         Event::listen(
-            events: ApplicationSubmissionCreated::class,
-            listener: ClearApplicationSubmissionCountCache::class
+            events: ApplicationSubmissionStateEntered::class,
+            listener: [TriggerApplicationSubmissionStageWorkflows::class, 'handleEntered']
+        );
+
+        Event::listen(
+            events: ApplicationSubmissionStateExited::class,
+            listener: [TriggerApplicationSubmissionStageWorkflows::class, 'handleExited']
         );
     }
 }

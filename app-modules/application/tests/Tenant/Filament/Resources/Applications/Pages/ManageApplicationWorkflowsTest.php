@@ -35,9 +35,12 @@
 */
 
 use AdvisingApp\Application\Database\Seeders\ApplicationSubmissionStateSeeder;
+use AdvisingApp\Application\Enums\ApplicationSubmissionStateClassification;
 use AdvisingApp\Application\Filament\Resources\Applications\Pages\ManageApplicationWorkflows;
 use AdvisingApp\Application\Models\Application;
+use AdvisingApp\Application\Models\ApplicationSubmissionState;
 use AdvisingApp\Authorization\Enums\LicenseType;
+use AdvisingApp\Workflow\Enums\WorkflowTriggerEvent;
 use AdvisingApp\Workflow\Enums\WorkflowTriggerType;
 use AdvisingApp\Workflow\Filament\Resources\Workflows\Pages\EditWorkflow;
 use AdvisingApp\Workflow\Models\Workflow;
@@ -149,6 +152,11 @@ test('can successfully edit workflow name through edit workflow page', function 
                 ->state([
                     'related_type' => $application->getMorphClass(),
                     'related_id' => $application->id,
+                    'sub_related_type' => 'application_submission_state',
+                    'sub_related_id' => ApplicationSubmissionState::query()
+                        ->where('classification', ApplicationSubmissionStateClassification::Received)
+                        ->value('id'),
+                    'event' => WorkflowTriggerEvent::Enter,
                 ])
         )
         ->create();
@@ -175,6 +183,11 @@ test('can enable workflow through edit workflow page', function () {
                 ->state([
                     'related_type' => $application->getMorphClass(),
                     'related_id' => $application->id,
+                    'sub_related_type' => 'application_submission_state',
+                    'sub_related_id' => ApplicationSubmissionState::query()
+                        ->where('classification', ApplicationSubmissionStateClassification::Received)
+                        ->value('id'),
+                    'event' => WorkflowTriggerEvent::Enter,
                 ])
         )
         ->state(['is_enabled' => false])
@@ -199,6 +212,11 @@ test('can disable workflow through edit workflow page', function () {
                 ->state([
                     'related_type' => $application->getMorphClass(),
                     'related_id' => $application->id,
+                    'sub_related_type' => 'application_submission_state',
+                    'sub_related_id' => ApplicationSubmissionState::query()
+                        ->where('classification', ApplicationSubmissionStateClassification::Received)
+                        ->value('id'),
+                    'event' => WorkflowTriggerEvent::Enter,
                 ])
         )
         ->state(['is_enabled' => true])
@@ -223,6 +241,11 @@ test('validates workflow name is required when editing', function () {
                 ->state([
                     'related_type' => $application->getMorphClass(),
                     'related_id' => $application->id,
+                    'sub_related_type' => 'application_submission_state',
+                    'sub_related_id' => ApplicationSubmissionState::query()
+                        ->where('classification', ApplicationSubmissionStateClassification::Received)
+                        ->value('id'),
+                    'event' => WorkflowTriggerEvent::Enter,
                 ])
         )
         ->create();
@@ -243,6 +266,11 @@ test('validates workflow name has maximum length when editing', function () {
                 ->state([
                     'related_type' => $application->getMorphClass(),
                     'related_id' => $application->id,
+                    'sub_related_type' => 'application_submission_state',
+                    'sub_related_id' => ApplicationSubmissionState::query()
+                        ->where('classification', ApplicationSubmissionStateClassification::Received)
+                        ->value('id'),
+                    'event' => WorkflowTriggerEvent::Enter,
                 ])
         )
         ->create();
@@ -264,6 +292,11 @@ test('workflow editing succeeds with proper permissions', function () {
                 ->state([
                     'related_type' => $application->getMorphClass(),
                     'related_id' => $application->id,
+                    'sub_related_type' => 'application_submission_state',
+                    'sub_related_id' => ApplicationSubmissionState::query()
+                        ->where('classification', ApplicationSubmissionStateClassification::Received)
+                        ->value('id'),
+                    'event' => WorkflowTriggerEvent::Enter,
                 ])
         )
         ->create();
@@ -294,6 +327,11 @@ test('workflow deletion succeeds with proper permissions', function () {
                 ->state([
                     'related_type' => $application->getMorphClass(),
                     'related_id' => $application->id,
+                    'sub_related_type' => 'application_submission_state',
+                    'sub_related_id' => ApplicationSubmissionState::query()
+                        ->where('classification', ApplicationSubmissionStateClassification::Received)
+                        ->value('id'),
+                    'event' => WorkflowTriggerEvent::Enter,
                 ])
         )
         ->create();
@@ -316,4 +354,68 @@ test('workflow deletion succeeds with proper permissions', function () {
     assertSoftDeleted($workflow);
 
     expect(WorkflowTrigger::find($triggerId))->not->toBeNull();
+});
+
+test('create action persists Stage and Trigger event from form data', function () {
+    asSuperAdmin();
+
+    $application = Application::factory()->create();
+
+    $reviewState = ApplicationSubmissionState::query()
+        ->where('classification', ApplicationSubmissionStateClassification::Review)
+        ->firstOrFail();
+
+    livewire(ManageApplicationWorkflows::class, ['record' => $application->getKey()])
+        ->callAction('create', [
+            'sub_related_id' => $reviewState->id,
+            'event' => WorkflowTriggerEvent::Exit->value,
+        ]);
+
+    $workflowTrigger = WorkflowTrigger::firstOrFail();
+    expect($workflowTrigger->sub_related_type)->toBe($reviewState->getMorphClass());
+    expect($workflowTrigger->sub_related_id)->toBe($reviewState->id);
+    expect($workflowTrigger->event)->toBe(WorkflowTriggerEvent::Exit);
+});
+
+test('create action defaults Stage to first non-archived state when no tab is active', function () {
+    asSuperAdmin();
+
+    $application = Application::factory()->create();
+
+    $firstState = ApplicationSubmissionState::query()
+        // @phpstan-ignore method.notFound
+        ->withoutArchived()
+        ->oldest('id')
+        ->firstOrFail();
+
+    livewire(ManageApplicationWorkflows::class, ['record' => $application->getKey()])
+        ->callAction('create');
+
+    $workflowTrigger = WorkflowTrigger::firstOrFail();
+    expect($workflowTrigger->sub_related_type)->toBe($firstState->getMorphClass());
+    expect($workflowTrigger->sub_related_id)->toBe($firstState->id);
+    expect($workflowTrigger->event)->toBe(WorkflowTriggerEvent::Enter);
+});
+
+test('tabs render one per non-archived submission state plus All', function () {
+    asSuperAdmin();
+
+    $application = Application::factory()->create();
+
+    $expectedStateIds = ApplicationSubmissionState::query()
+        // @phpstan-ignore method.notFound
+        ->withoutArchived()
+        ->oldest('id')
+        ->pluck('id')
+        ->all();
+
+    $tabs = livewire(ManageApplicationWorkflows::class, ['record' => $application->getKey()])
+        ->instance()
+        ->getTabs();
+
+    foreach ($expectedStateIds as $stateId) {
+        expect($tabs)->toHaveKey($stateId);
+    }
+
+    expect($tabs)->toHaveKey('all');
 });
